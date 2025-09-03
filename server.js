@@ -150,21 +150,32 @@ app.delete('/clientes/:id', (req, res) => {
 // CRUD de envios
 app.get('/envios', (req, res) => {
   const envios = readEnvios();
-  res.json(envios);
+  const clientes = readClientes();
+  
+  const enviosComCliente = envios.map(envio => {
+    const cliente = clientes.find(c => c.id === envio.cliente_id);
+    return {
+      ...envio,
+      cliente_nome: cliente ? cliente.nome : 'Cliente não encontrado'
+    };
+  });
+  
+  res.json(enviosComCliente);
 });
 
 app.post('/envios', (req, res) => {
-  const { cliente_id, produtos_clientes, valor_total, status } = req.body;
-  if (!cliente_id || !Array.isArray(produtos_clientes) || typeof valor_total !== 'number' || !status) {
-    return res.status(400).json({ error: 'Campos obrigatórios: cliente_id, produtos_clientes (array), valor_total (number), status.' });
+  const { cliente_id, produtos_clientes } = req.body;
+  if (!cliente_id || !Array.isArray(produtos_clientes)) {
+    return res.status(400).json({ error: 'Campos obrigatórios: cliente_id, produtos_clientes (array).' });
   }
+  const valor_total = produtos_clientes.reduce((total, item) => Number(total) + Number(item.preco), 0);
   const envios = readEnvios();
   const novoEnvio = {
     id: Date.now().toString(),
     cliente_id,
     produtos_clientes,
     valor_total,
-    status
+    status: false
   };
   envios.push(novoEnvio);
   writeEnvios(envios);
