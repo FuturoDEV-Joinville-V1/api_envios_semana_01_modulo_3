@@ -184,11 +184,15 @@ app.post('/envios', (req, res) => {
 
 app.put('/envios/:id', (req, res) => {
   const { id } = req.params;
-  const { cliente_id, produtos_clientes, valor_total, status } = req.body;
+  const { cliente_id, produtos_clientes } = req.body;
+  if (!cliente_id || !Array.isArray(produtos_clientes)) {
+    return res.status(400).json({ error: 'Campos obrigatórios: cliente_id, produtos_clientes (array).' });
+  }
+  const valor_total = produtos_clientes.reduce((total, item) => Number(total) + Number(item.preco), 0);
   const envios = readEnvios();
   const idx = envios.findIndex(e => e.id === id);
   if (idx === -1) return res.status(404).json({ error: 'Envio não encontrado.' });
-  envios[idx] = { id, cliente_id, produtos_clientes, valor_total, status };
+  envios[idx] = { id, cliente_id, produtos_clientes, valor_total, status: false };
   writeEnvios(envios);
   res.json(envios[idx]);
 });
@@ -201,6 +205,23 @@ app.delete('/envios/:id', (req, res) => {
   envios = envios.filter(e => e.id !== id);
   writeEnvios(envios);
   res.status(204).end();
+});
+
+app.get('/envios/:id', (req, res) => {
+  const { id } = req.params;
+  const envios = readEnvios();
+  const clientes = readClientes();
+  
+  const envio = envios.find(e => e.id === id);
+  if (!envio) return res.status(404).json({ error: 'Envio não encontrado.' });
+  
+  const cliente = clientes.find(c => c.id === envio.cliente_id);
+  const envioComCliente = {
+    ...envio,
+    cliente_nome: cliente ? cliente.nome : 'Cliente não encontrado'
+  };
+  
+  res.json(envioComCliente);
 });
 
 app.listen(PORT, () => {
